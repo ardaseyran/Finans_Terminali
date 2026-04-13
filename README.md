@@ -1,5 +1,5 @@
 Kendimce Finans Terminali
-Kendimce Finans Terminali, Modern Portföy Teorisi ve finansal matematik prensiplerini kullanarak varlık değerlemesi, risk analizi ve portföy optimizasyonu yapan interaktif bir web uygulamasıdır. Robert Shiller'ın finans derslerindeki temel kavramları (Beta, CAPM, Sharpe Oranı, Fat Tails) görselleştirerek yatırımcılara ve öğrencilere sayısal bir bakış açısı sunar.
+Modern Portföy Teorisi ve finansal matematik prensiplerini kullanarak varlık değerlemesi, risk analizi ve portföy optimizasyonu yapan interaktif bir web uygulamasıdır. Robert Shiller'ın finans derslerindeki temel kavramları (Beta, CAPM, Sharpe Oranı, Fat Tails) görselleştirerek yatırımcılara ve öğrencilere sayısal bir bakış açısı sunar.
 
 🛠️ Özellikler ve Modüller
 1. Makro & Hisse Değerleme (CAPM & Gordon)
