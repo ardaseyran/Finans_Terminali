@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kendimce Finans Terminali</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #0d9488; --primary-dark: #0f766e; --bg-color: #f8fafc;
+            --card-bg: #ffffff; --text-main: #334155; --text-muted: #64748b;
+            --border-color: #e2e8f0; --danger: #ef4444; --warning: #f59e0b; 
+            --short: #8b5cf6; --opt: #10b981; --minvar: #3b82f6;
+        }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 1200px; width: 100%; background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary-dark); text-align: center; margin-bottom: 20px; }
+        
+        /* Sekmeler */
+        .tabs { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 25px; overflow-x: auto; scrollbar-width: none; }
+        .tab-btn { padding: 12px 18px; cursor: pointer; background: none; border: none; font-size: 14px; font-weight: 600; color: var(--text-muted); border-bottom: 3px solid transparent; white-space: nowrap; transition: 0.3s; }
+        .tab-btn:hover { color: var(--primary); }
+        .tab-btn.active { color: var(--primary-dark); border-bottom: 3px solid var(--primary); }
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Grid & Kontroller */
+        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        @media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; font-size: 13px;}
+        .slider-val { color: var(--primary); font-weight: bold; }
+        input[type=range] { width: 100%; accent-color: var(--primary); cursor: pointer; }
+        
+        /* Kartlar */
+        .results-card { background-color: #f0fdfa; border: 1px solid #ccfbf1; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; }
+        .info-card { background-color: #f8fafc; border-left: 4px solid var(--warning); padding: 15px; border-radius: 4px; font-size: 13px; margin-top: 15px; line-height: 1.6; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .result-item { margin-bottom: 5px; background: white; padding: 10px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .result-item h3 { margin: 0 0 5px 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .result-value { font-size: 20px; font-weight: bold; color: var(--primary-dark); }
+        
+        .danger-text { color: var(--danger) !important; } .short-text { color: var(--short); }
+        .chart-container { width: 100%; height: 320px; margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .section-title { font-size: 14px; color: var(--primary-dark); border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 15px; margin-top: 5px; font-weight: bold;}
+        
+        /* 3'lü Simülasyon Tablosu */
+        .mc-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: left; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05);}
+        .mc-table th { background-color: #e2e8f0; padding: 8px; color: var(--text-main); }
+        .mc-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold; }
+        .row-opt { color: var(--opt); }
+        .row-min { color: var(--minvar); }
+        .row-usr { color: var(--danger); }
+
+        /* Kılavuz Özel Stilleri */
+        .guide-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .guide-container { grid-template-columns: 1fr; } }
+        .guide-box { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .guide-box h3 { color: var(--primary-dark); margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; font-size: 16px; }
+        .term-card { background: #f8fafc; border-left: 4px solid var(--primary); padding: 12px 15px; margin-bottom: 15px; border-radius: 0 6px 6px 0; }
+        .term-title { font-weight: bold; color: var(--primary-dark); font-size: 14px; margin-bottom: 5px; display: block; }
+        .term-desc { font-size: 13px; line-height: 1.5; color: var(--text-main); margin: 0; }
+        .term-example { font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Kendimce Finans Terminali</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab1')">1. Makro & Hisse Değerleme</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab2')">2. İkili Sepet (Basit)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab4')">3. 3'lü Sepet (Simülasyon)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab3')">4. Kaldıraç & Kredi</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab5')" style="margin-left: auto; color: var(--primary-dark);">📚 Akademi & Sözlük</button>
+    </div>
+
+    <div id="tab1" class="tab-content active">
+        <div class="panel-grid">
+            <div class="controls-card">
+                <div class="section-title">Piyasa Koşulları (Makro)</div>
+                <div class="control-group">
+                    <label><span>Merkez Bankası Faizi (Risksiz Getiri)</span><span class="slider-val" id="rf-val">%5.0</span></label>
+                    <input type="range" id="rf" min="0" max="25" step="0.5" value="5">
+                </div>
+                <div class="control-group">
+                    <label><span>Borsanın Genel Getiri Beklentisi</span><span class="slider-val" id="rm-val">%15.0</span></label>
+                    <input type="range" id="rm" min="5" max="40" step="0.5" value="15">
+                </div>
+
+                <div class="section-title" style="margin-top: 25px;">Senin Hissenin Özellikleri (Mikro)</div>
+                <div class="control-group">
+                    <label><span>Beta (β) - Endekse Duyarlılık</span><span class="slider-val" id="beta-val">1.2</span></label>
+                    <input type="range" id="beta" min="0.1" max="3.0" step="0.1" value="1.2">
+                </div>
+                <div class="control-group">
+                    <label><span>Şirket Özel Riski (Haberler vb.)</span><span class="slider-val" id="idio-val">%15</span></label>
+                    <input type="range" id="idio" min="0" max="50" step="1" value="15">
+                </div>
+                <div class="control-group">
+                    <label><span>Temettü Beklentisi (D1)</span><span class="slider-val" id="d1-val">10.00 ₺</span></label>
+                    <input type="range" id="d1" min="1" max="50" step="0.5" value="10">
+                </div>
+                <div class="control-group">
+                    <label><span>Sonsuz Büyüme (g)</span><span class="slider-val" id="g-val">%4.0</span></label>
+                    <input type="range" id="g" min="0" max="15" step="0.5" value="4">
+                </div>
+            </div>
+
+            <div class="results-card">
+                <div class="stat-grid">
+                    <div class="result-item">
+                        <h3>Beklenmesi Gereken Getiri (r)</h3>
+                        <div class="result-value" id="r-out">%17.00</div>
+                    </div>
+                    <div class="result-item">
+                        <h3>Hissenin Adil Fiyatı</h3>
+                        <div class="result-value" id="pv-out">76.92 ₺</div>
+                    </div>
+                    <div class="result-item" style="grid-column: span 2;">
+                        <h3>Sana Yansıyan Toplam Risk</h3>
+                        <div class="result-value" id="tot-risk-out">%28.3</div>
+                    </div>
+                </div>
+                <div class="info-card" id="t1-info"></div>
+            </div>
+        </div>
+        <div class="panel-grid">
+            <div class="chart-container"><canvas id="smlChart"></canvas></div>
+            <div class="chart-container"><canvas id="fatTailChart"></canvas></div>
+        </div>
+    </div>
+
+    <div id="tab2" class="tab-content">
+        <div class="panel-grid">
+            <div class="controls-card">
+                <div class="section-title">Ağırlıklar (Neye Ne Kadar Yatırdınız?)</div>
+                <div class="control-group">
+                    <label><span>Güvenli Varlığa (A) Yatırdığım Para</span><span class="slider-val" id="wa-val">%50</span></label>
+                    <input type="range" id="wa" min="0" max="100" step="1" value="50">
+                    <small style="color: var(--text-muted); font-size: 11px;">Kalan %<span id="wb-val">50</span>'yi riskli varlığa yatırdınız.</small>
+                </div>
+                
+                <div class="section-title" style="margin-top: 30px;">Uyumluluk (Korelasyon)</div>
+                <div class="control-group">
+                    <label><span>İki Varlığın Birlikte Hareket Etme Huyu</span><span class="slider-val" id="corr-val">0.0</span></label>
+                    <input type="range" id="corr" min="-1" max="1" step="0.1" value="0">
+                </div>
+            </div>
+
+            <div class="results-card">
+                <div class="stat-grid">
+                    <div class="result-item">
+                        <h3>Sepetin Beklenen Getirisi</h3>
+                        <div class="result-value" id="port-ret-out">%15.00</div>
+                    </div>
+                    <div class="result-item">
+                        <h3>Sepetin Toplam Riski</h3>
+                        <div class="result-value" id="port-risk-out">%15.81</div>
+                    </div>
+                </div>
+                <div class="info-card" id="t2-info"></div>
+            </div>
+        </div>
+        <div class="chart-container" style="height: 350px;"><canvas id="efficientFrontierChart"></canvas></div>
+    </div>
+
+    <div id="tab4" class="tab-content">
+        <div class="panel-grid">
+            <div class="controls-card">
+                <div class="section-title">Piyasadaki Uyum (Bulutu Şekillendirir)</div>
+                <div class="control-group">
+                    <label><span>Hisse & Tahvil Korelasyonu</span><span class="slider-val" id="c12-val">0.1</span></label>
+                    <input type="range" id="c12" min="-1" max="1" step="0.1" value="0.1">
+                </div>
+                <div class="control-group">
+                    <label><span>Hisse & Altın Korelasyonu</span><span class="slider-val" id="c13-val">0.2</span></label>
+                    <input type="range" id="c13" min="-1" max="1" step="0.1" value="0.2">
+                </div>
+                <div class="control-group">
+                    <label><span>Tahvil & Altın Korelasyonu</span><span class="slider-val" id="c23-val">-0.2</span></label>
+                    <input type="range" id="c23" min="-1" max="1" step="0.1" value="-0.2">
+                </div>
+
+                <div class="section-title" style="margin-top: 20px;">Senin Sepetin (Noktayı Hareket Ettirir)</div>
+                <div class="control-group">
+                    <label><span>Hisse Ağırlığı</span><span class="slider-val" id="w1-mc-val">%33</span></label>
+                    <input type="range" id="w1_mc" min="0" max="100" step="1" value="33">
+                </div>
+                <div class="control-group">
+                    <label><span>Tahvil Ağırlığı</span><span class="slider-val" id="w2-mc-val">%33</span></label>
+                    <input type="range" id="w2_mc" min="0" max="100" step="1" value="33">
+                </div>
+                <div style="font-size: 13px; text-align: right; color: var(--text-muted);">
+                    Kalan Altın Ağırlığı: <span id="w3-mc-val" style="font-weight:bold; color: var(--primary);">%34</span>
+                </div>
+            </div>
+
+            <div class="results-card" style="justify-content: flex-start;">
+                <div class="section-title" style="margin-top:0;">Simülasyon Çıktıları (1250 İhtimal)</div>
+                <table class="mc-table">
+                    <thead>
+                        <tr>
+                            <th>Sepet Tipi</th>
+                            <th>Hisse</th>
+                            <th>Tahvil</th>
+                            <th>Altın</th>
+                            <th>Getiri</th>
+                            <th>Risk</th>
+                            <th>Sharpe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mc-tbody">
+                        </tbody>
+                </table>
+                <div class="info-card" id="t4-info"></div>
+            </div>
+        </div>
+        <div class="chart-container" style="height: 380px;"><canvas id="mcChart"></canvas></div>
+    </div>
+
+    <div id="tab3" class="tab-content">
+        <div class="panel-grid">
+            <div class="controls-card">
+                <div class="section-title">Strateji Belirleme</div>
+                <div class="control-group" style="margin-top: 20px;">
+                    <label><span>Pozisyon Büyüklüğü</span><span class="slider-val" id="lev-val">%100</span></label>
+                    <input type="range" id="lev" min="-100" max="300" step="10" value="100">
+                    <small style="color: var(--text-muted); font-size: 11px;">%100'ün sağı bankadan borç almaktır. 0'ın solu açığa satmaktır.</small>
+                </div>
+            </div>
+
+            <div class="results-card">
+                <div class="stat-grid">
+                    <div class="result-item">
+                        <h3>Beklenen Net Kazanç</h3>
+                        <div class="result-value" id="lev-ret-out">%15.00</div>
+                    </div>
+                    <div class="result-item">
+                        <h3>Alınan Risk (Oynaklık)</h3>
+                        <div class="result-value" id="lev-risk-out">%20.00</div>
+                    </div>
+                </div>
+                <div class="info-card" id="lev-info"></div>
+            </div>
+        </div>
+        <div class="chart-container" style="height: 300px;"><canvas id="leverageChart"></canvas></div>
+    </div>
+
+    <div id="tab5" class="tab-content">
+        <div class="guide-container">
+            <div class="guide-box">
+                <h3>📌 Temel Göstergeler (Makro & Mikro)</h3>
+                
+                <div class="term-card">
+                    <span class="term-title">Risksiz Getiri (Rf)</span>
+                    <p class="term-desc">Hiçbir risk almadan (gece rahat uyuyarak) elde edebileceğiniz garanti kazançtır. Genellikle Devlet Tahvili faizleri veya Merkez Bankası faizleri baz alınır.</p>
+                    <span class="term-example">Örnek: Bankanın size verdiği net mevduat faizi.</span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title">Piyasa Getirisi (Rm)</span>
+                    <p class="term-desc">Borsanın genelinin (Örn: BIST 100 endeksi) yatırımcılara sunduğu ortalama kazanç beklentisidir.</p>
+                    <span class="term-example">Kural: Risksiz getiri (faiz) artarsa, yatırımcılar borsadan daha fazla getiri talep eder.</span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title">Beta (β) - Sistematik Risk</span>
+                    <p class="term-desc">Bir hissenin, borsanın genel havasına ne kadar tepki verdiğini ölçen "tansiyon aleti"dir. Borsa bir araba ise, Beta o arabanın süspansiyonudur.</p>
+                    <span class="term-example">Beta = 1.5 (Agresif): Borsa %10 artarsa hisse %15 uçar, borsa düşerse hisse çakılır.<br>Beta = 0.5 (Defansif): Borsa çökerken sizi korur, yükselirken geride kalır.</span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title">İdiosinkratik Risk (Şirkete Özel Risk)</span>
+                    <p class="term-desc">Sadece o şirketi ilgilendiren özel dertlerdir. Örneğin; fabrikada yangın çıkması, CEO'nun istifası veya bilançonun kötü gelmesi. Borsanın geneliyle ilgisi yoktur.</p>
+                    <span class="term-example">Çözüm: Sepetinize farklı sektörlerden hisseler ekleyerek (Çeşitlendirme) bu riski tamamen sıfırlayabilirsiniz.</span>
+                </div>
+            </div>
+
+            <div class="guide-box">
+                <h3>📌 Portföy & Kriz Yönetimi</h3>
+                
+                <div class="term-card">
+                    <span class="term-title">Korelasyon (Uyum)</span>
+                    <p class="term-desc">İki varlığın birlikte hareket etme huyudur. Sepet yaparken (çeşitlendirme) en çok dikkat edilmesi gereken konudur.</p>
+                    <span class="term-example">
+                        <strong>+1 Korelasyon:</strong> İkiz kardeş gibidirler. Biri düşerse diğeri de düşer (Kötü sepet).<br>
+                        <strong>-1 Korelasyon:</strong> Tahterevalli gibidirler. Biri düşerken diğeri kesin yükselir. Riski eriten kusursuz sepettir.
+                    </span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title">Sharpe Oranı</span>
+                    <p class="term-desc">"Bu kadar stres çektiğime (riske girdiğime) değdi mi?" sorusunun matematiksel cevabıdır. Aldığınız her 1 birim riske karşılık, cebinize fazladan giren parayı ölçer.</p>
+                    <span class="term-example">Kural: 3. Sekmedeki simülasyonda her zaman Sharpe Oranı en yüksek olan (Yeşil Nokta) portföy hedeflenmelidir.</span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title" style="color: #ef4444;">Siyah Kuğu (Fat Tail - Kalın Kuyruk)</span>
+                    <p class="term-desc">İstatistiksel olarak "imkansız" veya "milyonda bir" görünen krizlerin (Pandemi, savaş, devasa devalüasyonlar), gerçek dünyada sandığımızdan çok daha sık yaşanmasıdır.</p>
+                    <span class="term-example">1. Sekmedeki grafikte Beta'yı artırdığınızda yeşil alanın sağa ve sola doğru yayılması (kuyrukların kalınlaşması), bu "beklenmeyen krizlerde" iflas etme ihtimalinizin artması demektir.</span>
+                </div>
+
+                <div class="term-card">
+                    <span class="term-title" style="color: #8b5cf6;">Kaldıraç & Açığa Satış (Short)</span>
+                    <p class="term-desc"><strong>Kaldıraç (>%100):</strong> Cebinizdeki paranın yanına bankadan faizle borç alıp borsaya girmektir. Düşüşte "Margin Call" yiyip sıfırlanabilirsiniz.<br><strong>Açığa Satış (<%0):</strong> Elinizde olmayan bir hisseyi ödünç alıp satmaktır. Borsa düşerse kâr edersiniz, ancak yükselmeye devam ederse zararınızın bir sınırı yoktur (Sınırsız risk).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const MktVol = 0.20, BorrowRate = 0.08;
+    const RetA = 0.08, RiskA = 0.10, RetB = 0.22, RiskB = 0.30;
+    
+    const R1 = 0.18, V1 = 0.25; 
+    const R2 = 0.08, V2 = 0.10; 
+    const R3 = 0.12, V3 = 0.15; 
+
+    let smlC, fatC, efC, levC, mcC;
+
+    const rfIn = document.getElementById('rf'), rmIn = document.getElementById('rm');
+    const bIn = document.getElementById('beta'), iIn = document.getElementById('idio'), dIn = document.getElementById('d1'), gIn = document.getElementById('g');
+    const waIn = document.getElementById('wa'), cIn = document.getElementById('corr');
+    const levIn = document.getElementById('lev');
+    const c12In = document.getElementById('c12'), c13In = document.getElementById('c13'), c23In = document.getElementById('c23');
+    const w1_mcIn = document.getElementById('w1_mc'), w2_mcIn = document.getElementById('w2_mc');
+
+    // Optimizasyon için Cache Değişkenleri
+    let lastMcConfig = "";
+    let cachedSimData = [], cachedMaxS = null, cachedMinR = null;
+
+    function initCharts() {
+        smlC = new Chart(document.getElementById('smlChart'), { type: 'line', data: { datasets: [{label: 'Piyasa Doğrusu', data: [], borderColor: '#94a3b8', borderWidth:2, pointRadius:0}, {label:'Senin Seçimin', data:[], backgroundColor:'#0d9488', pointRadius:8, type:'scatter'}] }, options: { responsive:true, maintainAspectRatio:false, scales: { x: { title: { display: true, text: 'Risk (Beta)' } }, y: { title: { display: true, text: 'Getiri (%)' } } }, plugins: {title: {display:true, text:'Riskin Getiriye Dönüşümü (SML)'}, tooltip:{animation:false}}} });
+        fatC = new Chart(document.getElementById('fatTailChart'), { type: 'line', data: { labels: Array.from({length:81}, (_,i)=>((i-40)/10).toFixed(1)), datasets:[{label:'Sakin Piyasa', data:[], borderColor:'#94a3b8', borderDash:[5,5], fill:false, pointRadius:0}, {label:'Siyah Kuğu', data:[], backgroundColor:'rgba(13,148,136,0.2)', borderColor:'#0d9488', fill:true, pointRadius:0}] }, options: { responsive:true, maintainAspectRatio:false, scales:{y:{display:false}}, plugins:{title:{display:true, text:'Ekstrem Olayların (Krizlerin) Gerçekleşme İhtimali'}, tooltip:{animation:false}}} });
+        efC = new Chart(document.getElementById('efficientFrontierChart'), { type: 'line', data: { datasets: [{label:'Tüm İhtimaller', data:[], borderColor:'#94a3b8', borderWidth:2, pointRadius:0, fill:false}, {label:'Senin Sepetin', data:[], backgroundColor:'#0f766e', pointRadius:8, type:'scatter'}] }, options: { responsive:true, maintainAspectRatio:false, scales: { x: { title: { display: true, text: 'Toplam Risk (%)' } }, y: { title: { display: true, text: 'Beklenen Getiri (%)' } } }, plugins:{title:{display:true, text:'2 Varlıklı Çeşitlendirme Eğrisi'}, tooltip:{animation:false}}} });
+        levC = new Chart(document.getElementById('leverageChart'), { type: 'bar', data: { labels: ['Kazanç Beklentisi', 'Alınan Risk'], datasets: [{label:'Yüzde (%)', data:[0, 0], backgroundColor: ['#0d9488', '#ef4444']}] }, options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{title:{display:true, text:'Risk / Kazanç Dengesi'}, tooltip:{animation:false}}} });
+        
+        mcC = new Chart(document.getElementById('mcChart'), { 
+            type: 'scatter', 
+            data: { datasets: [{label:'Tüm İhtimaller (Bulut)', data:[], backgroundColor:'#cbd5e1', pointRadius:1.5}, {label:'Optimum (Maks Sharpe)', data:[], backgroundColor:'#10b981', pointRadius:7, pointHoverRadius:9}, {label:'En Az Risk (Min Varyans)', data:[], backgroundColor:'#3b82f6', pointRadius:7, pointHoverRadius:9}, {label:'Senin Sepetin', data:[], backgroundColor:'#ef4444', pointRadius:8, pointHoverRadius:10}] }, 
+            options: { responsive:true, maintainAspectRatio:false, animation: false, scales: { x: { title: { display: true, text: 'Portföy Riski (Standart Sapma %)' } }, y: { title: { display: true, text: 'Beklenen Getiri (%)' } } }, plugins:{title:{display:true, text:'3 Varlıklı Olasılık Bulutu (Simülasyon)'}, tooltip: {animation:false, callbacks: {label: function(c) { return 'Risk: %' + c.parsed.x.toFixed(2) + ', Getiri: %' + c.parsed.y.toFixed(2);}}}} } 
+        });
+    }
+
+    function switchTab(evt, tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        evt.currentTarget.classList.add('active');
+        setTimeout(() => {
+            if(tabName === 'tab1') { smlC.resize(); fatC.resize(); updateT1(); }
+            if(tabName === 'tab2') { efC.resize(); updateT2(); }
+            if(tabName === 'tab4') { mcC.resize(); updateT4(); }
+            if(tabName === 'tab3') { levC.resize(); updateT3(); }
+        }, 10);
+    }
+
+    function updateT1() {
+        let rf = parseFloat(rfIn.value)/100, rm = parseFloat(rmIn.value)/100;
+        let beta = parseFloat(bIn.value), idio = parseFloat(iIn.value)/100, d1 = parseFloat(dIn.value), g = parseFloat(gIn.value)/100;
+        
+        document.getElementById('rf-val').innerText = "%"+(rf*100).toFixed(1); document.getElementById('rm-val').innerText = "%"+(rm*100).toFixed(1);
+        document.getElementById('beta-val').innerText = beta.toFixed(1); document.getElementById('idio-val').innerText = "%"+(idio*100).toFixed(0);
+        
+        let r = rf + beta * (rm - rf); let sysRisk = beta * MktVol; let totRisk = Math.sqrt(Math.pow(sysRisk, 2) + Math.pow(idio, 2));
+
+        document.getElementById('r-out').innerText = "%"+(r*100).toFixed(2); document.getElementById('tot-risk-out').innerText = "%"+(totRisk*100).toFixed(1);
+        document.getElementById('pv-out').innerText = (g>=r) ? "Hata (Büyüme>Getiri)" : (d1/(r-g)).toFixed(2) + " ₺";
+
+        smlC.data.datasets[0].data = [{x:0, y:rf*100}, {x:3, y:(rf+3*(rm-rf))*100}]; smlC.data.datasets[1].data = [{x:beta, y:r*100}]; smlC.update('none'); // Animasyonu kapatıp hızı artırdık
+
+        let info1 = "💡 <strong>Makro Durum:</strong> ";
+        if (rf >= rm) {
+            info1 = "🚨 <strong>EKONOMİK ANOMALİ:</strong> Risksiz faiz, borsanın getirisinden yüksek! Mantıklı hiçbir yatırımcı borsaya girmez. Formül çöker ve risk (Beta) aldıkça beklenen getiri paradoksal olarak düşer.<br><br>";
+            document.getElementById('r-out').classList.add('danger-text');
+        } else {
+            document.getElementById('r-out').classList.remove('danger-text');
+            if (rf > 0.15) info1 += "Merkez bankası faizleri oldukça yüksek. Parayı risksiz faizde değerlendirmek varken borsada risk almak cazibesini yitiriyor.<br><br>";
+            else info1 += "Faizler makul seviyede, borsa yatırımları cazip görünüyor.<br><br>";
+        }
+
+        info1 += "💡 <strong>Hisse Analizi:</strong> Seçtiğiniz hisse ";
+        if (beta > 1.2) info1 += "oldukça <strong>Agresif</strong>. Borsa coştuğunda uçurur ancak düştüğünde çakılır. Sağdaki grafikte kalınlaşan yeşil alan, krizlerde (Siyah Kuğu) yaşayabileceğiniz şokun büyüklüğünü gösterir.";
+        else if (beta < 0.8) info1 += "oldukça <strong>Defansif</strong>. Güvenli bir liman. Borsa çökerken sizi korur ama ralli yaparken geride kalabilirsiniz. Sağdaki risk grafiği normale çok yakın.";
+        else info1 += "oldukça <strong>Dengeli</strong>. Borsanın genel ortalaması ile hemen hemen aynı oranlarda hareket eder.";
+
+        document.getElementById('t1-info').innerHTML = info1;
+
+        let nD=[], fD=[], tw=Math.max(0, (beta-0.5)*0.3);
+        for(let x=-4; x<=4; x+=0.1){ let ny = Math.exp(-0.5*x*x); nD.push(ny); fD.push((1-tw)*ny + tw*(1/(1+x*x)) + (Math.abs(x)>2.5 ? tw*0.1 : 0)); }
+        fatC.data.datasets[0].data = nD; fatC.data.datasets[1].data = fD; fatC.update('none');
+        
+        // 3. Sekmedeki Sharpe hesaplaması faizden etkilendiği için onu da güncelliyoruz
+        if(document.getElementById('tab4').classList.contains('active')) updateT4();
+    }
+
+    function updateT2() {
+        let wA = parseFloat(waIn.value)/100, wB = 1-wA, corr = parseFloat(cIn.value);
+        document.getElementById('wa-val').innerText = "%"+(wA*100).toFixed(0); document.getElementById('wb-val').innerText = (wB*100).toFixed(0);
+        document.getElementById('corr-val').innerText = corr.toFixed(1);
+
+        let cov = corr * RiskA * RiskB; let pRet = wA*RetA + wB*RetB; let pRisk = Math.sqrt((wA*RiskA)**2 + (wB*RiskB)**2 + 2*wA*wB*cov);
+
+        document.getElementById('port-ret-out').innerText = "%"+(pRet*100).toFixed(2); document.getElementById('port-risk-out').innerText = "%"+(pRisk*100).toFixed(2);
+
+        let info2 = "💡 <strong>Sepet Analizi:</strong> ";
+        if(wA === 100 || wA === 0) {
+            info2 += "Tüm yumurtaları aynı sepete koydunuz. Çeşitlendirme yapmadığınız için eğrinin sunduğu avantajlardan faydalanamıyorsunuz.";
+        } else {
+            if (corr < -0.3) info2 += "Harika bir seçim! Varlıklar birbiriyle zıt hareket ediyor (Tahterevalli gibi). Biri düşerken diğeri artacağı için sepetinizin toplam riski müthiş bir şekilde eridi (Aşağıdaki eğrinin sola doğru şişmesine dikkat edin).";
+            else if (corr > 0.7) info2 += "Tehlikeli bir uyum! Seçtiğiniz iki varlık adeta ikiz kardeş gibi aynı yöne gidiyor. Sepet yapmanızın bir esprisi kalmadı, çünkü riskleri bölemiyorsunuz (Eğri düz bir çizgiye dönüştü).";
+            else info2 += "Normal bir çeşitlendirme. İki varlık birbirinden nispeten bağımsız hareket ettiği için riskiniz makul bir şekilde dengelendi.";
+        }
+        document.getElementById('t2-info').innerHTML = info2;
+
+        let cD = [];
+        for(let i=0; i<=1; i+=0.02){
+            let cwA=i, cwB=1-cwA; cD.push({x: Math.sqrt((cwA*RiskA)**2 + (cwB*RiskB)**2 + 2*cwA*cwB*cov)*100, y:(cwA*RetA+cwB*RetB)*100});
+        }
+        efC.data.datasets[0].data = cD; efC.data.datasets[1].data = [{x:pRisk*100, y:pRet*100}]; efC.update('none'); // Akıcı hareket için animasyon kapalı
+    }
+
+    function updateT4() {
+        let rf = parseFloat(rfIn.value)/100; 
+        
+        let c12 = parseFloat(c12In.value), c13 = parseFloat(c13In.value), c23 = parseFloat(c23In.value);
+        document.getElementById('c12-val').innerText = c12.toFixed(1);
+        document.getElementById('c13-val').innerText = c13.toFixed(1);
+        document.getElementById('c23-val').innerText = c23.toFixed(1);
+
+        let w1_u = parseInt(w1_mcIn.value), w2_u = parseInt(w2_mcIn.value);
+        if(w1_u + w2_u > 100) { w2_u = 100 - w1_u; w2_mcIn.value = w2_u; } 
+        let w3_u = 100 - w1_u - w2_u;
+        
+        document.getElementById('w1-mc-val').innerText = "%" + w1_u;
+        document.getElementById('w2-mc-val').innerText = "%" + w2_u;
+        document.getElementById('w3-mc-val').innerText = "%" + w3_u;
+
+        let cov12 = c12 * V1 * V2, cov13 = c13 * V1 * V3, cov23 = c23 * V2 * V3;
+
+        function calcPort(w1, w2, w3) {
+            let ret = w1*R1 + w2*R2 + w3*R3;
+            let var_p = (w1*V1)**2 + (w2*V2)**2 + (w3*V3)**2 + 2*w1*w2*cov12 + 2*w1*w3*cov13 + 2*w2*w3*cov23;
+            let rsk = Math.sqrt(var_p); let shp = (ret - rf) / rsk;
+            return {ret, rsk, shp, w1: w1*100, w2: w2*100, w3: w3*100};
+        }
+
+        let userP = calcPort(w1_u/100, w2_u/100, w3_u/100);
+
+        // OPTİMİZASYON: Bulutu sadece faiz veya korelasyonlar değiştiğinde yeniden hesapla
+        let currentConfig = `${rf}_${c12}_${c13}_${c23}`;
+        if (currentConfig !== lastMcConfig) {
+            let simData = [], maxS = {shp: -999}, minR = {rsk: 999};
+            for(let i=0; i<=1.001; i+=0.02) {
+                for(let j=0; j<=1.001-i; j+=0.02) {
+                    let k = Math.max(0, 1 - i - j); let p = calcPort(i, j, k);
+                    simData.push({x: p.rsk*100, y: p.ret*100});
+                    if(p.shp > maxS.shp) maxS = p; if(p.rsk < minR.rsk) minR = p;
+                }
+            }
+            cachedSimData = simData; cachedMaxS = maxS; cachedMinR = minR;
+            lastMcConfig = currentConfig;
+        }
+
+        // Grafiği önbellekteki bulutla ve kullanıcının anlık kırmızı noktasıyla çiz
+        mcC.data.datasets[0].data = cachedSimData; 
+        mcC.data.datasets[1].data = [{x: cachedMaxS.rsk*100, y: cachedMaxS.ret*100}];
+        mcC.data.datasets[2].data = [{x: cachedMinR.rsk*100, y: cachedMinR.ret*100}]; 
+        mcC.data.datasets[3].data = [{x: userP.rsk*100, y: userP.ret*100}];
+        
+        mcC.update('none'); // Tarayıcıyı dondurmamak için anında (animasyonsuz) güncelle!
+
+        const trHtml = (title, cls, p) => `
+            <tr class="${cls}">
+                <td>${title}</td><td>%${p.w1.toFixed(0)}</td><td>%${p.w2.toFixed(0)}</td><td>%${p.w3.toFixed(0)}</td>
+                <td>%${(p.ret*100).toFixed(2)}</td><td>%${(p.rsk*100).toFixed(2)}</td><td>${p.shp.toFixed(2)}</td>
+            </tr>`;
+        document.getElementById('mc-tbody').innerHTML = trHtml("Optimum (Maks Sharpe)", "row-opt", cachedMaxS) + trHtml("En Az Risk (Min Varyans)", "row-min", cachedMinR) + trHtml("Senin Manuel Sepetin", "row-usr", userP);
+
+        let info4 = "💡 <strong>Algoritma Yorumu:</strong> Grafikteki binlerce gri nokta, seçtiğiniz uyumluluk (korelasyon) ayarlarına göre yapılabilecek tüm ihtimallerdir. Ağırlık sürgülerini hareket ettirerek kırmızı noktanızı (kendi sepetinizi) bu bulutun içinde uçurabilirsiniz. <br><br>";
+        if(userP.shp < cachedMaxS.shp * 0.7) info4 += "⚠️ Şu anki manuel seçiminiz (Kırmızı Nokta), optimum sepetin (Yeşil Nokta) oldukça gerisinde kaldı. Aynı riski alarak çok daha yüksek getiri elde edebilirsiniz. Tablodaki 'Optimum' ağırlıkları uygulamayı deneyin.";
+        else info4 += "✅ Tebrikler! Manuel seçiminiz (Kırmızı Nokta) optimum sepete oldukça yakın. Portföyünüz verimli bir şekilde çalışıyor.";
+        document.getElementById('t4-info').innerHTML = info4;
+    }
+
+    function updateT3() {
+        let rf = parseFloat(rfIn.value)/100, rm = parseFloat(rmIn.value)/100;
+        let w = parseFloat(levIn.value)/100;
+        let pText = "%"+(w*100).toFixed(0);
+        let lRet, lRisk, infoTxt = "💡 <strong>Strateji Analizi:</strong> ";
+
+        if(w === 1) { 
+            lRet = rm; lRisk = MktVol; document.getElementById('lev-val').innerText = pText + " (Sadece Ana Para)";
+            infoTxt += "Sadece kendi paranızla, standart piyasa riskini alarak yatırım yapıyorsunuz. Geceleri en rahat uyuyacağınız stratejilerden biridir.";
+        } 
+        else if(w > 1) { 
+            let b = w - 1; lRet = (w*rm) - (b*BorrowRate); lRisk = w*MktVol; document.getElementById('lev-val').innerText = pText + " (Borç ile İşlem)";
+            infoTxt += `Bankadan veya aracı kurumdan kendi paranızın <strong>%${(b*100).toFixed(0)}</strong> kadarı ile borç (kredi) aldınız. Borsa yükselirse kârınız devasa şekilde katlanır, ancak borsa düşerse banka zararını kapatmak için elinizdeki her şeye haciz koyabilir (Margin Call / Teminat Tamamlama). Çok riskli!`;
+        } 
+        else if(w <= 0) { 
+            let s = Math.abs(w); lRet = ((1+s)*rf) - (s*rm); lRisk = s*MktVol; document.getElementById('lev-val').innerText = pText + " (Düşüşe Oynamak)";
+            infoTxt += `Elinizde olmayan hisseleri ödünç alıp açığa sattınız (Short pozisyon). Borsa <strong>DÜŞERSE</strong> zengin olursunuz. Ancak borsa inatla yükselmeye devam ederse sınırsız zarar potansiyeline girersiniz. Genelde sadece profesyonellerin uyguladığı bir stratejidir.`;
+        } 
+        else { 
+            let c = 1 - w; lRet = (w*rm) + (c*rf); lRisk = w*MktVol; document.getElementById('lev-val').innerText = pText + " (Nakit Bekleme)";
+            infoTxt += `Paranızın <strong>%${(c*100).toFixed(0)}</strong> kısmını tamamen güvenli limana (risksiz faiz) çektiniz. Borsadaki dalgalanmalar sizi çok daha az sarsacaktır. Defansif ve korumacı bir yapı.`;
+        }
+
+        document.getElementById('lev-ret-out').innerText = "%"+(lRet*100).toFixed(2);
+        document.getElementById('lev-risk-out').innerText = "%"+(lRisk*100).toFixed(2);
+        document.getElementById('lev-info').innerHTML = infoTxt;
+
+        levC.data.datasets[0].data = [lRet*100, lRisk*100]; levC.data.datasets[0].backgroundColor = [lRet > 0 ? '#0d9488' : '#ef4444', '#ef4444']; levC.update('none'); // Animasyon kapalı
+    }
+
+    [rfIn, rmIn, bIn, iIn, dIn, gIn].forEach(el => el.addEventListener('input', updateT1));
+    [waIn, cIn].forEach(el => el.addEventListener('input', updateT2));
+    [c12In, c13In, c23In, w1_mcIn, w2_mcIn].forEach(el => el.addEventListener('input', updateT4));
+    [rfIn, rmIn, levIn].forEach(el => el.addEventListener('input', updateT3));
+
+    initCharts(); updateT1(); updateT2(); updateT4(); updateT3();
+</script>
+
+</body>
+</html>
